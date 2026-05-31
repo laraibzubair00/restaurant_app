@@ -15,7 +15,7 @@ void main() => runApp(MaterialApp(
       home: const MainNavigation(),
     ));
 
-const String baseUrl = "http://localhost/restaurant"; 
+const String baseUrl = "http://62.171.178.56/reservation/php/"; 
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
