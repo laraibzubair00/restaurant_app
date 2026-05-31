@@ -15,7 +15,7 @@ void main() => runApp(MaterialApp(
       home: const MainNavigation(),
     ));
 
-const String baseUrl = "http://62.171.178.56/reservation/php/"; 
+const String baseUrl = "http://62.171.178.56/reservation/php"; 
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -106,7 +106,6 @@ class ManagerDashboard extends StatelessWidget {
 
   const ManagerDashboard({super.key, required this.reservations, required this.updateStatus, required this.fetchReservations});
 
-  // --- FIXED MANUAL ADD FUNCTION ---
   void _showAddManualEntry(BuildContext context, String type) {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
@@ -148,17 +147,16 @@ class ManagerDashboard extends StatelessWidget {
             TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
             ElevatedButton(
               onPressed: () async {
-                // Sending JSON to match updated PHP
+                // Fixed JSON Payload to match naye table key structure
                 await http.post(
                   Uri.parse('$baseUrl/add_reservation.php'), 
                   headers: {"Content-Type": "application/json"},
                   body: json.encode({
-                    "customer_name": nameCtrl.text,
-                    "phone_number": phoneCtrl.text,
+                    "name": nameCtrl.text,
+                    "phone": phoneCtrl.text,
                     "party_size": sizeCtrl.text,
-                    "visit_type": type,
-                    "booking_time": type == 'booking' ? selectedSlot : 'NOW',
-                    "tag": "Manager Entry"
+                    "type": type,
+                    "booking_time": type == 'booking' ? selectedSlot : 'NOW'
                   })
                 );
                 fetchReservations();
@@ -179,8 +177,9 @@ class ManagerDashboard extends StatelessWidget {
       return s == 'pending' || s == '' || s == null;
     }
 
-    var bookings = reservations.where((r) => r['visit_type'] == 'booking' && isLive(r)).toList();
-    var waitlist = reservations.where((r) => r['visit_type'] == 'waitlist' && isLive(r)).toList();
+    // Checking 'type' instead of 'visit_type'
+    var bookings = reservations.where((r) => (r['type'] == 'booking' || r['visit_type'] == 'booking') && isLive(r)).toList();
+    var waitlist = reservations.where((r) => (r['type'] == 'waitlist' || r['visit_type'] == 'waitlist') && isLive(r)).toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -260,20 +259,25 @@ class ManagerDashboard extends StatelessWidget {
                 itemCount: items.length,
                 itemBuilder: (context, index) {
                   var res = items[index];
-                  String timeLabel = res['visit_type'] == 'booking' 
+                  
+                  // Safe mapping for visit type logic
+                  var currentType = res['type'] ?? res['visit_type'] ?? 'booking';
+                  String timeLabel = currentType == 'booking' 
                       ? "⏰ ${res['booking_time'] ?? 'NOW'}" 
-                      : "🕒 In: ${res['created_at'].toString().split(' ')[1].substring(0,5)}";
+                      : "🕒 In: ${res['created_at'] != null ? res['created_at'].toString().split(' ')[1].substring(0,5) : 'NOW'}";
 
                   return Card(
                     margin: const EdgeInsets.only(bottom: 10),
                     elevation: 0,
                     shape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(10)),
                     child: ListTile(
-                      title: Text(res['customer_name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      // Safe check for 'name' fallback to 'customer_name'
+                      title: Text(res['name'] ?? res['customer_name'] ?? 'No Name', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("📞 ${res['phone_number']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                          // Safe check for 'phone' fallback to 'phone_number'
+                          Text("📞 ${res['phone'] ?? res['phone_number'] ?? 'N/A'}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
                           Text("Guests: ${res['party_size']} | $timeLabel"),
                         ],
                       ),
@@ -339,8 +343,8 @@ class HistoryScreen extends StatelessWidget {
                   String stat = (res['status'] == null || res['status'] == '' || res['status'] == 'pending') ? 'PENDING' : res['status'].toString().toUpperCase();
                   
                   return ListTile(
-                    title: Text(res['customer_name']),
-                    subtitle: Text("${res['visit_type']} | ${res['phone_number']}"),
+                    title: Text(res['name'] ?? res['customer_name'] ?? 'No Name'),
+                    subtitle: Text("${res['type'] ?? res['visit_type'] ?? ''} | ${res['phone'] ?? res['phone_number'] ?? ''}"),
                     trailing: Text(stat, 
                         style: TextStyle(fontWeight: FontWeight.bold, 
                         color: stat == 'SEATED' ? Colors.green : (stat == 'CANCELLED' ? Colors.red : Colors.blue))),
@@ -377,19 +381,23 @@ class CustomerTrackerScreen extends StatefulWidget {
   @override
   State<CustomerTrackerScreen> createState() => _CustomerTrackerScreenState();
 }
+
 class _CustomerTrackerScreenState extends State<CustomerTrackerScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   Map? _found;
   int _pos = -1;
+
   void _search() {
     for (int i = 0; i < widget.activeWaitlist.length; i++) {
-      if (widget.activeWaitlist[i]['phone_number'].toString().contains(_searchCtrl.text)) {
+      var currentPhone = widget.activeWaitlist[i]['phone'] ?? widget.activeWaitlist[i]['phone_number'] ?? '';
+      if (currentPhone.toString().contains(_searchCtrl.text)) {
         setState(() { _found = widget.activeWaitlist[i]; _pos = i + 1; });
         return;
       }
     }
     setState(() { _found = null; });
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -404,7 +412,7 @@ class _CustomerTrackerScreenState extends State<CustomerTrackerScreen> {
             decoration: InputDecoration(labelText: "Enter Phone Number", suffixIcon: IconButton(icon: const Icon(Icons.search), onPressed: _search))),
             if (_found != null) ...[
               const SizedBox(height: 40),
-              Text("Hello, ${_found!['customer_name']}", style: const TextStyle(fontSize: 20)),
+              Text("Hello, ${_found!['name'] ?? _found!['customer_name'] ?? ''}", style: const TextStyle(fontSize: 20)),
               Text("$_pos", style: const TextStyle(fontSize: 80, fontWeight: FontWeight.bold, color: Colors.blue)),
               const Text("Your Queue Position"),
             ]
