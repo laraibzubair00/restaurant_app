@@ -147,7 +147,6 @@ class ManagerDashboard extends StatelessWidget {
             TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
             ElevatedButton(
               onPressed: () async {
-                // Fixed JSON Payload to match naye table key structure
                 await http.post(
                   Uri.parse('$baseUrl/add_reservation.php'), 
                   headers: {"Content-Type": "application/json"},
@@ -177,47 +176,46 @@ class ManagerDashboard extends StatelessWidget {
       return s == 'pending' || s == '' || s == null;
     }
 
-    // Checking 'type' instead of 'visit_type'
     var bookings = reservations.where((r) => (r['type'] == 'booking' || r['visit_type'] == 'booking') && isLive(r)).toList();
     var waitlist = reservations.where((r) => (r['type'] == 'waitlist' || r['visit_type'] == 'waitlist') && isLive(r)).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Nimbus Pro - Live Dashboard", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text("Nimbus Dashboard", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         backgroundColor: Colors.white,
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: () => fetchReservations()),
+          IconButton(icon: const Icon(Icons.refresh, size: 22), onPressed: () => fetchReservations()),
           TextButton.icon(
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => CustomerTrackerScreen(activeWaitlist: waitlist))),
-            icon: const Icon(Icons.track_changes),
-            label: const Text("Track Status"),
+            icon: const Icon(Icons.track_changes, size: 18),
+            label: const Text("Tracker", style: TextStyle(fontSize: 12)),
           ),
-          const SizedBox(width: 10),
         ],
       ),
       body: Column(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             color: Colors.white,
             child: Row(
               children: [
                 _statChip("Bookings", bookings.length, Colors.blue),
-                const SizedBox(width: 10),
+                const SizedBox(width: 6),
                 _statChip("Waitlist", waitlist.length, Colors.orange),
                 const Spacer(),
-                const Icon(Icons.circle, color: Colors.green, size: 10),
-                const Text(" System Live", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12)),
+                const Icon(Icons.circle, color: Colors.green, size: 8),
+                const SizedBox(width: 4),
+                const Text("LIVE", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 10)),
               ],
             ),
           ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(20.0),
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Row(
                 children: [
                   _buildColumn(context, "Bookings", bookings, "booking"),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 8),
                   _buildColumn(context, "Waitlist", waitlist, "waitlist"),
                 ],
               ),
@@ -230,71 +228,91 @@ class ManagerDashboard extends StatelessWidget {
 
   Widget _statChip(String label, int val, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-      child: Text("$label: $val", style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+      child: Text("$label: $val", style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11)),
     );
   }
 
   Widget _buildColumn(BuildContext context, String title, List items, String typeKey) {
     return Expanded(
       child: Container(
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15)),
-        padding: const EdgeInsets.all(15),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.all(8),
         child: Column(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 IconButton(
-                  icon: const Icon(Icons.add_circle, color: Color(0xFF6200EE)),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(Icons.add_circle, color: Color(0xFF6200EE), size: 24),
                   onPressed: () => _showAddManualEntry(context, typeKey),
                 ),
               ],
             ),
-            const Divider(),
+            const Divider(height: 12),
             Expanded(
               child: ListView.builder(
                 itemCount: items.length,
                 itemBuilder: (context, index) {
                   var res = items[index];
-                  
-                  // Safe mapping for visit type logic
                   var currentType = res['type'] ?? res['visit_type'] ?? 'booking';
                   String timeLabel = currentType == 'booking' 
                       ? "⏰ ${res['booking_time'] ?? 'NOW'}" 
-                      : "🕒 In: ${res['created_at'] != null ? res['created_at'].toString().split(' ')[1].substring(0,5) : 'NOW'}";
+                      : "🕒 ${res['created_at'] != null ? res['created_at'].toString().split(' ')[1].substring(0,5) : 'NOW'}";
 
                   return Card(
-                    margin: const EdgeInsets.only(bottom: 10),
+                    margin: const EdgeInsets.only(bottom: 8),
                     elevation: 0,
-                    shape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(10)),
-                    child: ListTile(
-                      // Safe check for 'name' fallback to 'customer_name'
-                      title: Text(res['name'] ?? res['customer_name'] ?? 'No Name', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                      subtitle: Column(
+                    shape: RoundedRectangleBorder(side: BorderSide(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(8)),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10.0),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Safe check for 'phone' fallback to 'phone_number'
-                          Text("📞 ${res['phone'] ?? res['phone_number'] ?? 'N/A'}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-                          Text("Guests: ${res['party_size']} | $timeLabel"),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.red),
-                            onPressed: () => updateStatus(context, res['id'].toString(), 'cancelled'),
+                          Text(
+                            res['name'] ?? res['customer_name'] ?? 'No Name', 
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          InkWell(
-                            onTap: () => updateStatus(context, res['id'].toString(), 'seated'),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(color: const Color(0xFF6200EE), borderRadius: BorderRadius.circular(8)),
-                              child: const Icon(Icons.check, color: Colors.white, size: 18),
-                            ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "📞 ${res['phone'] ?? res['phone_number'] ?? 'N/A'}", 
+                            style: const TextStyle(fontWeight: FontWeight.w500, color: Colors.black87, fontSize: 11),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "Size: ${res['party_size']} | $timeLabel",
+                            style: const TextStyle(fontSize: 10, color: Colors.grey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                                onPressed: () => updateStatus(context, res['id'].toString(), 'cancelled'),
+                              ),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: () => updateStatus(context, res['id'].toString(), 'seated'),
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(color: const Color(0xFF6200EE), borderRadius: BorderRadius.circular(6)),
+                                  child: const Icon(Icons.check, color: Colors.white, size: 16),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -312,6 +330,7 @@ class ManagerDashboard extends StatelessWidget {
 
 class HistoryScreen extends StatelessWidget {
   final List reservations;
+  // FIXED CONSTRUCTOR: Included required reservations parameter
   const HistoryScreen({super.key, required this.reservations});
 
   @override
@@ -321,9 +340,9 @@ class HistoryScreen extends StatelessWidget {
     int cancelled = reservations.where((r) => r['status'].toString().toLowerCase() == 'cancelled').length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Management History")),
+      appBar: AppBar(title: const Text("History & Reports", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
             Row(
@@ -333,7 +352,7 @@ class HistoryScreen extends StatelessWidget {
                 _reportBox("Cancelled", cancelled, Colors.red),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 15),
             const Divider(),
             Expanded(
               child: ListView.builder(
@@ -343,10 +362,14 @@ class HistoryScreen extends StatelessWidget {
                   String stat = (res['status'] == null || res['status'] == '' || res['status'] == 'pending') ? 'PENDING' : res['status'].toString().toUpperCase();
                   
                   return ListTile(
-                    title: Text(res['name'] ?? res['customer_name'] ?? 'No Name'),
-                    subtitle: Text("${res['type'] ?? res['visit_type'] ?? ''} | ${res['phone'] ?? res['phone_number'] ?? ''}"),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                    title: Text(res['name'] ?? res['customer_name'] ?? 'No Name', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    subtitle: Text(
+                      "${res['type'] ?? res['visit_type'] ?? ''} | ${res['phone'] ?? res['phone_number'] ?? ''}",
+                      style: const TextStyle(fontSize: 11),
+                    ),
                     trailing: Text(stat, 
-                        style: TextStyle(fontWeight: FontWeight.bold, 
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10,
                         color: stat == 'SEATED' ? Colors.green : (stat == 'CANCELLED' ? Colors.red : Colors.blue))),
                   );
                 },
@@ -361,12 +384,19 @@ class HistoryScreen extends StatelessWidget {
   Widget _reportBox(String title, int val, Color color) {
     return Expanded(
       child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
         child: Padding(
-          padding: const EdgeInsets.all(15.0),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
           child: Column(
             children: [
-              Text(title, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-              Text("$val", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              Text(
+                title, 
+                style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11),
+                maxLines: 1,
+                overflow: TextOverflow.visible,
+              ),
+              const SizedBox(height: 4),
+              Text("$val", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ),
         ),
@@ -403,13 +433,18 @@ class _CustomerTrackerScreenState extends State<CustomerTrackerScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text("Status Tracker")),
       body: Padding(
-        padding: const EdgeInsets.all(40),
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            TextField(controller: _searchCtrl, 
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: InputDecoration(labelText: "Enter Phone Number", suffixIcon: IconButton(icon: const Icon(Icons.search), onPressed: _search))),
+            TextField(
+              controller: _searchCtrl, 
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: InputDecoration(
+                labelText: "Enter Phone Number", 
+                suffixIcon: IconButton(icon: const Icon(Icons.search), onPressed: _search)
+              ),
+            ),
             if (_found != null) ...[
               const SizedBox(height: 40),
               Text("Hello, ${_found!['name'] ?? _found!['customer_name'] ?? ''}", style: const TextStyle(fontSize: 20)),
